@@ -108,16 +108,21 @@ def message_handler(data):
     
     if data['i'] == buy_order['orderId']:
         trades.append({'price':decimal(data['p']), 'size':-SIZE})
-
-        client.cancel_order('BTCBUSD', orderId=sell_order['orderId'])
+        try:
+            client.cancel_order('BTCBUSD', orderId=sell_order['orderId'])
+        except:
+            pass
         buy_order = client.new_order('BTCBUSD','BUY','LIMIT', timeInForce='GTC', quantity=SIZE, price=round(decimal(data['p'])) - STEP, recvWindow=60000)
         sell_order = client.new_order('BTCBUSD','SELL','LIMIT', timeInForce='GTC', quantity=SIZE, price=round(decimal(data['p'])) + STEP, recvWindow=60000)
-
+    
 
     if data['i'] == sell_order['orderId']:
         trades.append({'price':decimal(data['p']), 'size':SIZE})
 
-        client.cancel_order('BTCBUSD', orderId=buy_order['orderId'])
+        try:
+            client.cancel_order('BTCBUSD', orderId=buy_order['orderId'])
+        except:
+            pass
         buy_order = client.new_order('BTCBUSD','BUY','LIMIT', timeInForce='GTC', quantity=SIZE, price=round(decimal(data['p'])) - STEP, recvWindow=60000)
         sell_order = client.new_order('BTCBUSD','SELL','LIMIT', timeInForce='GTC', quantity=SIZE, price=round(decimal(data['p'])) + STEP, recvWindow=60000)
         

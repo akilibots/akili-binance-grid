@@ -1,2 +1,1 @@
-python-binance
-pyjson5==1.6.2
+binance-connector==1.18.0

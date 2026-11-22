@@ -1,1 +1,2 @@
-binance-connector==1.18.0
+binance-sdk-spot==13.7.0
+requests==2.34.2

@@ -1,21 +1,86 @@
-# Welcome to akili-grid!
+# akili-binance-grid
 
-### Built specifically for high frequency trading using zero fee pairs in Binance
+A moving two-order grid for Binance Spot using the current `binance-sdk-spot`
+connector and Python 3.15.2. The market is configurable; the example uses BTCUSDT
+on Binance Spot Testnet. The old hard-coded BTCBUSD pair and zero-fee assumption
+are removed.
 
-[![stability-alpha](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#alpha)
-[![Telegram](https://badges.aleen42.com/src/telegram.svg)](https://t.me/+9F0CZj8emLc2YTY0)
+## Configuration
 
-Jambo! and welcome! akiligrid is a grid bot that uses the grid strategy to trade crypto currencies. The word **akili** means brain or mind in Swahili. The objective here is to make it the most intelligent grid bot in existence that has as many advanced features as possible, but which at the same time can be used by your typical crypto trader with basic grid bot experience
+Copy `.env.example` to `.env` and set:
 
-As with all projects was born out of frustration on the lack of features with "commercial" bots out there. They always missed that little tweak that in my mind would make things a lot more better, and hopefully profitable.
+| Variable | Meaning |
+| --- | --- |
+| `KEY`, `SECRET` | API credentials for the selected environment |
+| `SYMBOL` | A listed Spot market, for example BTCUSDT |
+| `BINANCE_BASE_URL` | REST URL; the example selects `https://testnet.binance.vision` |
+| `WIDTH` | Initial inventory multiplier, a positive integer |
+| `SIZE` | Base-asset quantity for each grid order |
+| `STEP` | Quote-asset price spacing on either side of the centre |
+| `POLL_SECONDS` | Order-status polling interval, default 1 second |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Optional status notifications |
 
-This is a high frequency trading bot built to take advantage of Binance zero fees on BTC/BUSD and thus the bot orders can be very tight. I've had success running it only 2 USD above and below the current price off a server in Japan and can easily do 100 orders per minute, and because there are zero fees, there isn't any theoretical minumum of how small the grid orders or spacing can be.
+Verify the current market's filters and fees. Sizes must satisfy LOT_SIZE;
+limit prices are rounded down to PRICE_FILTER tick size. Binance applies its
+remaining notional, balance and other order filters. A rejected order stops the
+bot; it is not silently retried with changed quantities.
 
-Let's get the usual out of the way...
+## Behaviour
 
-***DISCLAIMER
+The bot buys `SIZE * WIDTH` at market once to establish inventory, using actual
+executed quantity and price in its records. It then places one buy at `centre -
+STEP` and one sell at `centre + STEP`, both of `SIZE`.
 
-This software is for educational purposes only. Do not risk money which you are afraid to lose. USE THE SOFTWARE AT YOUR OWN RISK. THE AUTHORS AND ALL AFFILIATES ASSUME NO RESPONSIBILITY FOR YOUR TRADING RESULTS.***
+When an order fills, the bot cancels and reconciles its sibling before rebuilding
+both orders around the observed execution price. Partial fills during cancellation
+are recorded before rebuilding. All recorded purchases are real fills, including
+the initial inventory. No synthetic entry prices are inserted.
 
-It takes the current BTC/BUSD price and builds a very tight grid around it configured by the environment variables.
-Please beware that it will run until the cows come home so keep monitoring. Suggest you connect your telegram for this. For best performance run it off a server in Osaka, Japan (Linode / Oracle / AWS) for low latency which returns better results for high frequency trading as the binance API servers are also somewhere in Osaka or Tokyo
+The implementation polls REST order status. It has no expiring listen key to
+renew and does not promise a particular high-frequency throughput. Polling must
+respect the exchange's request-weight and order-rate limits.
+
+Realised FIFO profit is reported in the quote asset and includes commissions
+paid in the base or quote asset. Commissions in other assets, such as BNB, are
+reported separately rather than converted at an invented rate. The figure excludes
+unrealised inventory value. Inventory and available balances still limit how far
+the grid can follow a sustained move.
+
+## Run and recovery
+
+```sh
+cp .env.example .env
+# Configure .env before starting.
+docker compose build
+docker compose up -d
+docker compose logs -f
+```
+
+Compose uses the runtime Docker target and persists `./data`. `data/state.json`
+records strategy progress and `data/exchange.json` records client order IDs before
+submission. Keep these files together. Restarting reconciles the original IDs
+instead of buying the starting inventory again. An uncertain submission or failed
+cancellation stops execution rather than creating an untracked replacement.
+
+Do not delete state to recover from an error. Check exchange orders, fills and
+balances first. Existing settings, account, symbol and API environment are bound
+to the saved state. Use a separate data directory for each bot. A process lock
+prevents two instances from using the same directory. Stopping the process leaves
+its orders on the exchange; cancel them explicitly when required.
+
+Legacy versions did not persist their trades. Reconcile their existing inventory
+and orders before starting this version with a fresh data directory.
+
+## Tests
+
+```sh
+docker build --target test -t binance-grid-test .
+docker run --rm --network none binance-grid-test
+```
+
+The offline suite tests inventory initialization, restart recovery, cancellation,
+FIFO fees and the actual SDK's signing and response-model code against mocked HTTP
+responses. Live credentials are not needed. Passing the suite does not establish
+live exchange execution or profitability.
+
+Software is supplied as is under the repository licence.

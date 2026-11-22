@@ -1,13 +1,31 @@
-# akili-binance-grid
+<p align="center"><img src="https://raw.githubusercontent.com/akilibots/.github/main/assets/akilibots-icon.svg" width="144" alt="Akilibots"></p>
 
-A moving two-order grid for Binance Spot using the current `binance-sdk-spot`
-connector and Python 3.15.2. The market is configurable; the example uses BTCUSDT
-on Binance Spot Testnet. The old hard-coded BTCBUSD pair and zero-fee assumption
-are removed.
+# Welcome to akili-binance-grid!
+
+[![Python 3.15.2](https://img.shields.io/badge/Python-3.15.2-6966FF?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![Binance Spot](https://img.shields.io/badge/Binance_Spot-0B0B18)](https://github.com/akilibots/akili-binance-grid)
+[![Docker tests](https://github.com/akilibots/akili-binance-grid/actions/workflows/tests.yaml/badge.svg?branch=main)](https://github.com/akilibots/akili-binance-grid/actions/workflows/tests.yaml)
+[![Telegram](https://img.shields.io/badge/Telegram-community-6966FF?logo=telegram&logoColor=white)](https://t.me/+9F0CZj8emLc2YTY0)
+
+> **Updated 22 November 2026:** Python 3.15.2, the current Binance Spot SDK, configurable markets, persistent recovery and actual fill-and-fee accounting.
+
+Jambo! and welcome! **akili-binance-grid** keeps a buy and a sell around the latest
+filled price. It started as a tight-grid bot for zero-fee pairs; now you choose a
+listed Spot market and the bot records the fees you actually pay. ♨️
+
+The word **akili** means brain or mind in Swahili. These bots are non-opinionated: you set the strategy and stay in control. They grew out of wanting that little extra tweak that commercial bots always seemed to miss.
 
 ## Configuration
 
-Copy `.env.example` to `.env` and set:
+Clone the repository and create your environment file:
+
+```sh
+git clone https://github.com/akilibots/akili-binance-grid.git
+cd akili-binance-grid
+cp .env.example .env
+```
+
+Edit `.env` and set:
 
 | Variable | Meaning |
 | --- | --- |
@@ -25,7 +43,7 @@ limit prices are rounded down to PRICE_FILTER tick size. Binance applies its
 remaining notional, balance and other order filters. A rejected order stops the
 bot; it is not silently retried with changed quantities.
 
-## Behaviour
+## How it works
 
 The bot buys `SIZE * WIDTH` at market once to establish inventory, using actual
 executed quantity and price in its records. It then places one buy at `centre -
@@ -46,17 +64,15 @@ reported separately rather than converted at an invented rate. The figure exclud
 unrealised inventory value. Inventory and available balances still limit how far
 the grid can follow a sustained move.
 
-## Run and recovery
+## Get it running and keep it running
 
 ```sh
-cp .env.example .env
-# Configure .env before starting.
-docker compose build
-docker compose up -d
+docker compose up --build -d
 docker compose logs -f
 ```
 
-Compose uses the runtime Docker target and persists `./data`. `data/state.json`
+Stop it with `docker compose down`. This stops the process, not its exchange
+orders. Compose uses the runtime Docker target and persists `./data`. `data/state.json`
 records strategy progress and `data/exchange.json` records client order IDs before
 submission. Keep these files together. Restarting reconciles the original IDs
 instead of buying the starting inventory again. An uncertain submission or failed
@@ -71,7 +87,7 @@ its orders on the exchange; cancel them explicitly when required.
 Legacy versions did not persist their trades. Reconcile their existing inventory
 and orders before starting this version with a fresh data directory.
 
-## Tests
+## Test it yourself
 
 ```sh
 docker build --target test -t binance-grid-test .
@@ -83,4 +99,12 @@ FIFO fees and the actual SDK's signing and response-model code against mocked HT
 responses. Live credentials are not needed. Passing the suite does not establish
 live exchange execution or profitability.
 
-Software is supplied as is under the repository licence.
+## The usual bit
+
+This software is for educational purposes only. Do not risk money you are afraid
+to lose. **USE THE SOFTWARE AT YOUR OWN RISK. THE AUTHORS AND ALL AFFILIATES ASSUME
+NO RESPONSIBILITY FOR YOUR TRADING RESULTS.**
+
+See [LICENSE](LICENSE) for the full terms.
+
+Part of [Akilibots](https://github.com/akilibots). Come say jambo in [Telegram](https://t.me/+9F0CZj8emLc2YTY0).
